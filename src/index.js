@@ -1,4 +1,16 @@
-export default function render (ejml, scope, global, subScope) {
+export default function render (ejml, scope) {
+  return $render(ejml, scope, {})
+}
+
+render.eval = function evaluate (func, scope, subScope) {
+  try {
+    return func(scope, subScope)
+  } catch (err) {
+    return undefined
+  }
+}
+
+function $render (ejml, scope, subScope) {
   let res
   if (!ejml) {
     res = ''
@@ -6,57 +18,43 @@ export default function render (ejml, scope, global, subScope) {
     let [node, attributes, ...children] = ejml
     if (node === '*') {
       node = createFragment(node)
-      computedAttributes(attributes, scope, global, subScope, (sub) => {
-        appendChildren(node, children, scope, global, sub)
+      computedAttributes(attributes, scope, subScope, (sub) => {
+        appendChildren(node, children, scope, sub)
       })
     } else {
       node = createNode(node)
-      setAttributes(node, attributes, scope, global, subScope)
-      appendChildren(node, children, scope, global, subScope)
+      setAttributes(node, attributes, scope, subScope)
+      appendChildren(node, children, scope, subScope)
     }
     return node
   } else if (typeof ejml === 'function') {
-    res = render.eval(ejml, scope, global, subScope)
+    res = render.eval(ejml, scope, subScope)
   } else {
     res = ejml
   }
   return createTextNode(res)
 }
 
-render.eval = function evaluate (func, scope, global, subScope) {
-  try {
-    return func(scope, global, subScope || {})
-  } catch (err) {
-    return undefined
-  }
+function appendChildren (node, children, scope, subScope) {
+  children.forEach(child => {
+    node.appendChild($render(child, scope, subScope))
+  })
 }
 
-function createNode (tagName) {
-  return document.createElement(tagName)
-}
-
-function createTextNode (text) {
-  return document.createTextNode(text)
-}
-
-function createFragment () {
-  return document.createDocumentFragment()
-}
-
-function setAttributes (node, attributes, scope, global, subScope) {
+function setAttributes (node, attributes, scope, subScope) {
   let attr, val
   Object.keys(attributes).forEach(key => {
     if (key[0] === '@') { // event
       subScope = subScope || {}
       node.addEventListener(key.slice(1), (event) => {
         subScope.$event = event
-        render.eval(attributes[key], scope, global, subScope)
+        render.eval(attributes[key], scope, subScope)
       })
     } else {
-      attr = document.createAttribute(key)
+      attr = createAttribute(key)
       val = attributes[key]
       if (typeof val === 'function') {
-        val = render.eval(val, scope, global, subScope)
+        val = render.eval(val, scope, subScope)
       }
       attr.nodeValue = val
       node.setAttributeNode(attr)
@@ -64,31 +62,45 @@ function setAttributes (node, attributes, scope, global, subScope) {
   })
 }
 
-function computedAttributes (attributes, scope, global, subScope, callback) {
+function computedAttributes (attributes, scope, subScope, callback) {
   let $if = attributes['*if']
   if ($if) {
-    $if = render.eval($if, scope, global, subScope)
+    $if = render.eval($if, scope, subScope)
     if (!$if) return
   }
   let $items = attributes['*for']
   if ($items) {
-    $items = render.eval($items, scope, global, subScope)
-    let sub = subScope
-             ? Object.assign({}, subScope)
-             : {}
-    let subKey = attributes['_forKey']
-    ;($items || []).forEach((v, k) => {
-      sub[subKey] = v
-      sub.$index = k
-      callback(sub)
-    })
+    $items = render.eval($items, scope, subScope)
+    if ($items && $items.length) {
+      let sub = subScope
+              ? Object.assign({}, subScope)
+              : {}
+      let subKey = attributes['_forKey']
+      $items.forEach((v, k) => {
+        sub[subKey] = v
+        sub.$index = k
+        callback(sub)
+      })
+    }
   } else {
-    callback(scope, global, subScope)
+    callback(scope, subScope)
   }
 }
 
-function appendChildren (node, children, scope, global, subScope) {
-  children.forEach(child => {
-    node.appendChild(render(child, scope, global, subScope))
-  })
+const doc = window.document
+
+function createNode (tagName) {
+  return doc.createElement(tagName)
+}
+
+function createTextNode (text) {
+  return doc.createTextNode(text)
+}
+
+function createFragment () {
+  return doc.createDocumentFragment()
+}
+
+function createAttribute (attribute) {
+  return doc.createAttribute(attribute)
 }
