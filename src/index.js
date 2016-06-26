@@ -1,3 +1,11 @@
+const values = {
+  text: 'textContent',
+  textContent: 'textContent',
+  innerText: 'innerText',
+  html: 'innerHTML',
+  innerHTML: 'innerHTML',
+}
+
 export default function render (ejml, scope) {
   return $render(ejml, scope, {})
 }
@@ -15,16 +23,16 @@ function $render (ejml, scope, subScope) {
   if (!ejml) {
     res = ''
   } else if (Array.isArray(ejml)) {
-    let [node, attributes, ...children] = ejml
-    if (node === '*') {
+    let [node, attributes, children] = ejml
+    if (node === 'template') {
       node = createFragment(node)
-      computedAttributes(attributes, scope, subScope, (sub) => {
-        appendChildren(node, children, scope, sub)
+      attributes && computedAttributes(attributes, scope, subScope, (sub) => {
+        children && appendChildren(node, children, scope, sub)
       })
     } else {
       node = createNode(node)
-      setAttributes(node, attributes, scope, subScope)
-      appendChildren(node, children, scope, subScope)
+      attributes && setAttributes(node, attributes, scope, subScope)
+      children && appendChildren(node, children, scope, subScope)
     }
     return node
   } else if (typeof ejml === 'function') {
@@ -42,22 +50,30 @@ function appendChildren (node, children, scope, subScope) {
 }
 
 function setAttributes (node, attributes, scope, subScope) {
-  let attr, val
+  let attr, prop, val
   Object.keys(attributes).forEach(key => {
     if (key[0] === '@') { // event
-      subScope = subScope || {}
       node.addEventListener(key.slice(1), (event) => {
         subScope.$event = event
         render.eval(attributes[key], scope, subScope)
       })
     } else {
-      attr = createAttribute(key)
-      val = attributes[key]
-      if (typeof val === 'function') {
-        val = render.eval(val, scope, subScope)
+      prop = values[key]
+      if (prop) {
+        val = attributes[key]
+        if (typeof val === 'function') {
+          val = render.eval(val, scope, subScope)
+        }
+        node[prop] = val
+      } else {
+        attr = createAttribute(key)
+        val = attributes[key]
+        if (typeof val === 'function') {
+          val = render.eval(val, scope, subScope)
+        }
+        attr.nodeValue = val
+        node.setAttributeNode(attr)
       }
-      attr.nodeValue = val
-      node.setAttributeNode(attr)
     }
   })
 }
