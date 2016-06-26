@@ -1,6 +1,6 @@
 {
   "name": "ejsonml-render",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "JavaScript render for eJsonML",
   "main": "dist/ejsonml.render.js",
   "scripts": {
