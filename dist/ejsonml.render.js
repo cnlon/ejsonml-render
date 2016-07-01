@@ -1,6 +1,6 @@
 /**
  * ejsonml-render --- By longhao <longhaohe@gmail.com> (http://longhaohe.com/)
- * Github: https://github.com/longhaohe/ejsonml-render
+ * Github: https://github.com/lon3/ejsonml-render
  * MIT Licensed.
  */
 (function (global, factory) {
